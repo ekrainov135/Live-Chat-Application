@@ -17,7 +17,7 @@ def main():
     username = console_input('Enter user name: ', clearing=2)
     client = ChatClient()
     try:
-        client.login(username)
+        client.login(username, server=('127.0.0.1', 7070))
     except ChatClientError as e:
         print(f'Error: {e}')
         exit()
