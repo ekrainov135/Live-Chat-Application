@@ -9,7 +9,7 @@ def console_input(prompt='', clearing=0):
     if clearing == 1:
         print(CLEARING_STRING)
     elif clearing == 2:
-        os.system('cls')
+        os.system('cls' if os.name == 'nt' else 'clear')
     return result
 
 
