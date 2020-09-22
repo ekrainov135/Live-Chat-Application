@@ -1,4 +1,3 @@
-
 import json
 import time
 from abc import ABC, abstractmethod
@@ -25,6 +24,7 @@ class BaseServerManager(ABC):
 
 
 class ChatServerManager(BaseServerManager):
+    """ Chat manager class. Processes requests from the client and stores the chat history in json.  """
 
     def login_required(func):
         """ Decorator for functions using login.  """
@@ -64,7 +64,7 @@ class ChatServerManager(BaseServerManager):
                 data_json = await self.read(reader)
                 await self.receivers[data_json['type']](writer, data_json)
 
-        except (ConnectionError, ChatServerError) as e:
+        except ConnectionError as e:
             await self._transport_logout(writer)
 
     async def _transport_login(self, writer, data_json):
