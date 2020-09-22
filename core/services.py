@@ -23,10 +23,6 @@ class BaseStorageDriver(ABC):
 class ChatStorageDriver(BaseStorageDriver):
     TIME_PATTERN = '%A %H:%M'
 
-    @property
-    def objects(self):
-        return self._objects
-
     def push_message(self, username, message):
         self._objects.append(
             {
