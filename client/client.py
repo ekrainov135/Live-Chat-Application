@@ -7,6 +7,7 @@ CLEARING_STRING = "\033[A                             \033[A"
 
 
 class BaseClient:
+    """ Base client to handle the connection to the server.  """
 
     def __init__(self):
         self.is_active = False
@@ -55,12 +56,15 @@ class BaseClient:
 
 
 class ChatClient(BaseClient):
+    """ Client to handle the connection to the chat server.  """
 
     def __init__(self):
         super().__init__()
         self.handlers = {'send': self._send}
 
     def _send(self, data_json):
+        """ Method for handling server responses 'send' type.  """
+
         for message_object in data_json['content']:
             print(CLEARING_STRING)
             print(f"({message_object['timestamp']}) {message_object['member']}: {message_object['message']}\n")
