@@ -1,28 +1,43 @@
 import os
 from threading import Thread
 
-from client import ChatClient
+from client import ChatClient, CLEARING_STRING, ChatClientError
 
 
-CLEARING_STRING = "\033[A                             \033[A"
+def console_input(prompt='', clearing=0):
+    result = input(prompt)
+    if clearing == 1:
+        print(CLEARING_STRING)
+    elif clearing == 2:
+        os.system('cls')
+    return result
 
 
 def main():
-    username = input('Enter user name: ')
-    os.system('cls')
+    username = console_input('Enter user name: ', clearing=2)
     client = ChatClient()
-    client.connect('127.0.0.1', 7070)
-    client.authorize(username)
-    print(f'= <{client.username}> =======', end='\n\n')
+    try:
+        client.login(username)
+    except ChatClientError as e:
+        print(f'Error: {e}')
+        exit()
+
+    print(f'= {client.username} =======\n\n')
 
     # Start processing incoming messages in a separate thread.
     server_echo_thread = Thread(target=client.echo_server)
     server_echo_thread.start()
 
     while True:
-        message = input()
-        print(CLEARING_STRING)
-        client.send(message)
+        try:
+            message = console_input(clearing=1)
+            client.send(message)
+        except ChatClientError as e:
+            print(f'Error: {e}')
+            exit()
+        except KeyboardInterrupt:
+            client.logout()
+            exit()
 
 
 if __name__ == '__main__':
