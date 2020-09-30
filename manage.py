@@ -1,23 +1,39 @@
 import asyncio
+import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
-from core.server import ChatServerManager
+from core.server import ChatSocketManager, ServerError
 
 
 def run_chat_server(host='127.0.0.1', port=7070):
-    chat_server_manager = ChatServerManager()
+    chat_socket = ChatSocketManager()
+
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(chat_server_manager.connection_handle, host, int(port), loop=loop)
-    server = loop.run_until_complete(coro)
+    loop.create_task(server_input(loop, chat_socket))
 
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
+    print(f'Server start {host}:{port}')
 
-    server.close()
-    loop.run_until_complete(server.wait_closed())
-    loop.close()
+    # Starting the server in a separate thread is not required
+    with ThreadPoolExecutor() as pool:
+        loop.run_until_complete(loop.run_in_executor(pool, chat_socket.start, host, port))
+
+    print(f'Server stop {host}:{port}')
+
+
+async def server_input(loop, server):
+    """ Function to manage the server from the console.  """
+
+    commands = {'stop': server.stop, 'abort': server.abort,
+                'clear': lambda: os.system('cls' if os.name == 'nt' else 'clear'),
+                }
+
+    while True:
+        cmd, *args = (await loop.run_in_executor(None, input)).split()
+        if cmd in commands:
+            commands[cmd](*args)
+            if cmd in ('stop', 'abort'):
+                break
 
 
 def main():
