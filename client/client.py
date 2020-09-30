@@ -14,15 +14,15 @@ class BaseClient:
         self.handlers = {}
 
     def __del__(self):
-        self._connection.close()
-        del self._connection
+        self._socket.close()
+        del self._socket
 
     def read(self):
         data = b''
 
         while not data.endswith(b'\n'):
             try:
-                data += self._connection.recv(1024)
+                data += self._socket.recv(1024)
             except socket.error as e:
                 raise ChatClientError("unknown server error", e)
 
@@ -30,20 +30,23 @@ class BaseClient:
 
     def write(self, data_json):
         try:
-            self._connection.send(json.dumps(data_json).encode()+b'\n')
+            self._socket.send(json.dumps(data_json).encode()+b'\n')
         except socket.error as e:
             raise ChatClientError("unknown server error", e)
 
     def connect(self, host, port, timeout=None):
         try:
-            self._connection = socket.create_connection((host, int(port)), timeout)
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if timeout is not None:
+                self._socket.settimeout(float(timeout))
+            self._socket.connect((host, int(port)))
             self.is_active = True
         except socket.error as e:
             raise ChatClientError("unknown server error", e)
 
     def disconnect(self):
         self.is_active = False
-        self._connection.close()
+        self._socket.close()
 
     def echo_server(self):
         while self.is_active:
