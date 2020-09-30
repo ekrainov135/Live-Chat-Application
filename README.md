@@ -1,5 +1,5 @@
 # Live-Chat-Application
-Test assignment for DINS internship
+TCP-chat training project without using third-party libraries and without gui
 
 ```bash
 $ git clone https://github.com/ekrainov135/Live-Chat-Application.git
