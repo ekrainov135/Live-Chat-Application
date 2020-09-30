@@ -1,106 +1,142 @@
+import asyncio
 import json
+import socket
 import time
 from abc import ABC, abstractmethod
 
 from core.services import ChatStorageDriver
+from core.transport import TransportTCP
 
 
-class BaseServerManager(ABC):
+class SocketManager(ABC):
     """ Base class of a low-level tcp-server """
 
-    async def read(self, reader):
-        data = b''
+    def __init__(self):
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._loop = asyncio.new_event_loop()
 
-        while not data.endswith(b'\n'):
-            data += await reader.read(1024)
-        return json.loads(data.decode())
+        self.is_active = False
+        self.receivers = {}
 
-    def write(self, writer, data_json):
-        writer.write(json.dumps(data_json).encode()+b'\n')
+    def start(self, host, port, tasks_count=1, queue_length=5):
+        """ Sets up a port listener and starts tasks to listen for incoming connections in an event loop.  """
 
-    @abstractmethod
-    async def connection_handle(self, reader, writer):
-        pass
+        self._socket.bind((host, int(port)))
+        self._socket.listen(int(queue_length))
+
+        self.is_active = True
+
+        task_list = [self._echo() for _ in range(tasks_count)]
+        self._loop.run_until_complete(asyncio.wait(task_list))
+
+    async def _echo(self):
+        while self.is_active:
+            try:
+                connection, address = await self._loop.run_in_executor(None, self._socket.accept)
+            except OSError as e:
+                break
+            else:
+                self._loop.create_task(self._connection_handle(connection, address))
+
+    async def _connection_handle(self, connection, address):
+        """ Wrapper connection_handle method for correct connection handling.  """
+
+        with TransportTCP(connection, address) as transport:
+            try:
+                await self.connection_handle(transport)
+            except ConnectionError as e:
+                transport.close()
+
+    async def connection_handle(self, transport):
+        return
+
+    def stop(self):
+        self.is_active = False
+        self._socket.close()
+
+    def abort(self):
+        self.stop()
+        self._loop.stop()
 
 
-class ChatServerManager(BaseServerManager):
+class ChatSocketManager(SocketManager):
     """ Chat manager class. Processes requests from the client and stores the chat history in json.  """
 
     def login_required(func):
         """ Decorator for functions using login.  """
 
-        async def wrapped(self, writer, data_json):
-            peername = writer.get_extra_info('peername')
-            is_identified = peername in self.members
-            is_authenticated = is_identified and self.members[peername].username == data_json['username']
+        async def wrapped(self, transport, data_json):
+            is_identified = transport.peername in self.members
+            is_authenticated = is_identified and self.members[transport.peername].username == data_json['username']
 
-            return await func(self, writer, data_json) if is_identified and is_authenticated else None
+            return await func(self, transport, data_json) if is_identified and is_authenticated else None
         return wrapped
 
     def __init__(self):
+        super().__init__()
         self.storage = ChatStorageDriver('storage.json')
 
         # Protocol method handlers
         self.receivers = {'login': self._transport_login, 'logout': self._transport_logout, 'send': self._transport_send}
 
-        # Chat member dictionary in the format: {<member peername>: <member writer>}
+        # Chat member dictionary in the format: {<member peername>: <member transport>}
         # Also the username is stored in <member writer> value
         self.members = {}
 
-    async def connection_handle(self, reader, writer):
+    async def connection_handle(self, transport):
         try:
             # Waiting for authentication data from client
-            data_json = await self.read(reader)
+            data_json = transport.read()
             if data_json['type'] != 'login':
                 return
-            await self._transport_login(writer, data_json)
-
+            await self._transport_login(transport, data_json)
+            
             # Sending chat history
             chat_history_response = {'type': 'send', 'content': self.storage.objects}
-            self.write(writer, chat_history_response)
+            transport.write(chat_history_response)
 
             # Listening to incoming messages from the client
-            while True:
-                data_json = await self.read(reader)
-                await self.receivers[data_json['type']](writer, data_json)
+            while self.is_active:
+                data_json = await self._loop.run_in_executor(None, transport.read)
+                await self.receivers[data_json['type']](transport, data_json)
 
         except ConnectionError as e:
-            await self._transport_logout(writer)
+            if transport.peername in self.members:
+                await self._transport_logout(transport)
 
-    async def _transport_login(self, writer, data_json):
-        peername = writer.get_extra_info('peername')
-        print(f"[{time.strftime('%x %X')}] connect: {peername} as '{data_json.get('username')}'")
+    async def _transport_login(self, transport, data_json):
+        print(f"[{time.strftime('%x %X')}] connect: {transport.peername} as '{data_json.get('username')}'")
 
         is_occupied = data_json['username'] in [writer.username for writer in self.members.values()]
 
         # Sending a response to the user
         data_json['status'] = 'this username is already taken' if is_occupied else 'ok'
-        self.write(writer, data_json)
+        transport.write(data_json)
 
         if is_occupied:
-            await self._transport_logout(writer)
+            await self._transport_logout(transport)
         else:
-            writer.username = data_json['username']
-            self.members[peername] = writer
+            transport.username = data_json['username']
+            self.members[transport.peername] = transport
 
-    async def _transport_logout(self, writer, data_json=None):
-        peername = writer.get_extra_info('peername')
-        print(f"[{time.strftime('%x %X')}] disconnect: {peername}", end=' forcibly\n' if data_json is None else '\n')
+    async def _transport_logout(self, transport, data_json=None):
+        print(f"[{time.strftime('%x %X')}] disconnect: {transport.peername}",
+              end=' forcibly\n' if data_json is None else '\n')
 
-        if peername in self.members:
-            self.members.pop(peername)
+        if transport.peername in self.members:
+            self.members.pop(transport.peername)
 
-        writer.transport.pause_reading()
+        transport.close()
 
     @login_required
-    async def _transport_send(self, writer, data_json):
+    async def _transport_send(self, transport, data_json):
         self.storage.push_message(data_json['username'], data_json['content'])
 
         # A new message is sent as a list
         data_json['content'] = self.storage.objects[-1:]
-        for writer in self.members.values():
-            self.write(writer, data_json)
+        for transport in self.members.values():
+            transport.write(data_json)
 
 
-class ChatServerError(Exception):
+class ServerError(Exception):
     pass
