@@ -3,7 +3,8 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-from core.server import ChatSocketManager, ServerError
+import settings
+from core.server import ChatSocketManager
 
 
 def run_chat_server(host='127.0.0.1', port=7070):
@@ -12,13 +13,8 @@ def run_chat_server(host='127.0.0.1', port=7070):
     loop = asyncio.get_event_loop()
     loop.create_task(server_input(loop, chat_socket))
 
-    print(f'Server start {host}:{port}')
-
-    # Starting the server in a separate thread is not required
     with ThreadPoolExecutor() as pool:
         loop.run_until_complete(loop.run_in_executor(pool, chat_socket.start, host, port))
-
-    print(f'Server stop {host}:{port}')
 
 
 async def server_input(loop, server):
@@ -30,10 +26,11 @@ async def server_input(loop, server):
 
     while True:
         cmd, *args = (await loop.run_in_executor(None, input)).split()
-        if cmd in commands:
+        if cmd in ('stop', 'abort'):
+            commands[cmd]()
+            break
+        elif cmd in commands:
             commands[cmd](*args)
-            if cmd in ('stop', 'abort'):
-                break
 
 
 def main():
