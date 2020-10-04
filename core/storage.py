@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 
 class BaseStorageDriver(ABC):
+    """ Base class storage driver.  """
+
     _objects = None
 
     @property
@@ -11,6 +13,14 @@ class BaseStorageDriver(ABC):
         return self._objects
 
     def close(self):
+        pass
+
+
+class ChatStorageDriver(BaseStorageDriver):
+    """ Abstract class with chat interface.  """
+
+    @abstractmethod
+    def send(self, username, message):
         pass
 
 
@@ -27,16 +37,11 @@ class DriverJSON(BaseStorageDriver):
         with open(self._filename, 'w') as storage_file:
             storage_file.write(json.dumps(self._objects, ensure_ascii=False, indent=4))
 
-
-class ChatStorageDriver(BaseStorageDriver):
-    """ Abstract class with chat interface.  """
-
-    @abstractmethod
-    def send(self, username, message):
-        pass
+    def close(self):
+        self.save()
 
 
-class ChatDriverJSON(DriverJSON, ChatStorageDriver):
+class ChatDriverJSON(ChatStorageDriver, DriverJSON):
     TIME_PATTERN = '%A %H:%M'
 
     def send(self, username, message):
@@ -46,7 +51,6 @@ class ChatDriverJSON(DriverJSON, ChatStorageDriver):
                 'message': message,
                 'timestamp': time.strftime(self.TIME_PATTERN)
             })
-        self.save()
 
 
 
