@@ -5,7 +5,7 @@ class TransportTCP:
     """ Class extension for working with connections.  """
 
     def __init__(self, connection, address):
-        self._connection, self.peername = connection, address
+        self._connection, self.fileno, self.peername = connection, connection.fileno(), address
         self.char_end = b'\n'
 
     def __enter__(self):
