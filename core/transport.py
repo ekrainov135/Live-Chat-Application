@@ -7,6 +7,7 @@ class TransportTCP:
     def __init__(self, connection, address):
         self._connection, self.fileno, self.peername = connection, connection.fileno(), address
         self.char_end = b'\n'
+        self.bufsize = 1024
 
     def __enter__(self):
         return self
@@ -15,16 +16,21 @@ class TransportTCP:
         self._connection.close()
 
     def read(self):
-        data = b''
+        result, data = {}, b''
 
         while not data.endswith(self.char_end):
             try:
-                data += self._connection.recv(1024)
+                data += self._connection.recv(self.bufsize)
             except (ConnectionError, OSError) as e:
                 self._connection.close()
                 raise ConnectionError(e)
 
-        return json.loads(data.decode())
+        try:
+            result = json.loads(data.decode())
+        except json.JSONDecodeError:
+            pass
+
+        return result
 
     def write(self, data_json):
         try:
