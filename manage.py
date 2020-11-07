@@ -3,8 +3,9 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-import settings
-from core.server import ChatSocketManager
+#from core.tests import test
+#from app.tests import test
+from app.server import ChatSocketManager
 
 
 def run_chat_server(host='127.0.0.1', port=7070):
@@ -35,11 +36,13 @@ async def server_input(loop, server):
 
 def main():
     COMMAND_DEFAULT = 'run_chat_server'
+    handlers = {
+        'run_chat_server': run_chat_server,
+        #'test': test.main
+    }
+
     console_command = COMMAND_DEFAULT if len(sys.argv) == 1 else sys.argv[1]
-    if console_command == 'run_chat_server':
-        run_chat_server('127.0.0.1', 7070)
-    else:
-        pass
+    handlers[console_command](*sys.argv[2:])
 
 
 if __name__ == '__main__':
