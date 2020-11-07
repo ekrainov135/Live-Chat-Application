@@ -3,54 +3,69 @@ import time
 from abc import ABC, abstractmethod
 
 
+# =====================================================================================================================
+# Drivers classes
+# =====================================================================================================================
+
 class BaseStorageDriver(ABC):
     """ Base class storage driver.  """
 
-    _objects = None
 
-    @property
-    def objects(self):
-        return self._objects
-
-    def close(self):
-        pass
-
-
-class ChatStorageDriver(BaseStorageDriver):
-    """ Abstract class with chat interface.  """
+class FileStorageDriver(BaseStorageDriver):
+    """ Abstract file storage driver.  """
 
     @abstractmethod
-    def send(self, username, message):
+    def read(self):
+        pass
+
+    @abstractmethod
+    def write(self, data):
         pass
 
 
 class DriverJSON(BaseStorageDriver):
-    """ Abstract class for working with json files.  """
+    """ Driver for handling json files.  """
 
     def __init__(self, filename):
         self._filename = filename
-        with open(filename) as storage_file:
-            data = storage_file.read()
-            self._objects = json.loads(data)
 
-    def save(self):
-        with open(self._filename, 'w') as storage_file:
-            storage_file.write(json.dumps(self._objects, ensure_ascii=False, indent=4))
+    def read(self):
+        with open(self._filename) as storage_file:
+            data = storage_file.read()
+            result = json.loads(data)
+        return result
+
+    def write(self, data, mode='w'):
+        with open(self._filename, mode) as storage_file:
+            storage_file.write(json.dumps(data, ensure_ascii=False, indent=4))
+
+
+# =====================================================================================================================
+# Controllers classes
+# =====================================================================================================================
+
+class BaseStorageController(ABC):
+    """ Base class storage controller.  """
+
+    _objects = None
+
+    def __init__(self, driver):
+        self.driver = driver
+
+    @property
+    def objects(self):
+        self._objects = self.driver.read()
+        return self._objects
+
+    @objects.setter
+    def objects(self, objects):
+        self._objects = objects
+        self.driver.write(self._objects)
 
     def close(self):
-        self.save()
+        pass
 
 
-class ChatDriverJSON(ChatStorageDriver, DriverJSON):
-    TIME_PATTERN = '%A %H:%M'
-
-    def send(self, username, message):
-        self._objects.append(
-            {
-                'member': username,
-                'message': message,
-                'timestamp': time.strftime(self.TIME_PATTERN)
-            })
 
 
 
