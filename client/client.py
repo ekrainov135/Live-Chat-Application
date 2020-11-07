@@ -24,7 +24,7 @@ class BaseClient:
             try:
                 data += self._socket.recv(1024)
             except socket.error as e:
-                raise ChatClientError("unknown server error", e)
+                raise ClientError("unknown server error", e)
 
         return json.loads(data.decode())
 
@@ -32,7 +32,7 @@ class BaseClient:
         try:
             self._socket.send(json.dumps(data_json).encode()+b'\n')
         except socket.error as e:
-            raise ChatClientError("unknown server error", e)
+            raise ClientError("unknown server error", e)
 
     def connect(self, host, port, timeout=None):
         try:
@@ -42,7 +42,7 @@ class BaseClient:
             self._socket.connect((host, int(port)))
             self.is_active = True
         except socket.error as e:
-            raise ChatClientError("unknown server error", e)
+            raise ClientError("unknown server error", e)
 
     def disconnect(self):
         self.is_active = False
@@ -54,7 +54,7 @@ class BaseClient:
                 response = self.read()
                 if response['type'] in self.handlers:
                     self.handlers[response['type']](response)
-            except (ConnectionError, ChatClientError):
+            except (ConnectionError, ClientError):
                 break
 
 
@@ -80,7 +80,7 @@ class ChatClient(BaseClient):
         self.write(request)
         response = self.read()
         if response['status'] != 'ok':
-            raise ChatClientError(response['status'])
+            raise ClientError(response['status'])
         self.username = username
         
     def logout(self):
@@ -97,5 +97,5 @@ class ChatClient(BaseClient):
         self.write(request)
 
 
-class ChatClientError(Exception):
+class ClientError(Exception):
     pass

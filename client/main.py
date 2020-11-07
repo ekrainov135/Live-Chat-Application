@@ -1,7 +1,7 @@
 import os
 from threading import Thread
 
-from client import ChatClient, CLEARING_STRING, ChatClientError
+from client import ChatClient, CLEARING_STRING, ClientError
 
 
 def console_input(prompt='', clearing=0):
@@ -18,7 +18,7 @@ def main():
     client = ChatClient()
     try:
         client.login(username, server=('127.0.0.1', 7070))
-    except ChatClientError as e:
+    except ClientError as e:
         print(f'Error: {e}')
         exit()
 
@@ -32,7 +32,7 @@ def main():
         try:
             message = console_input(clearing=1)
             client.send(message)
-        except ChatClientError as e:
+        except ClientError as e:
             print(f'Error: {e}')
             exit()
         except KeyboardInterrupt:
