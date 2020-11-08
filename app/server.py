@@ -61,6 +61,8 @@ class ChatSocketManager(SocketManager):
         super().stop()
 
     async def _transport_login(self, transport, data_json):
+        """ Processes an incoming login request.  """
+
         is_occupied = data_json['username'] in [writer.username for writer in self.members.values()]
 
         # Sending a response to the user
@@ -76,6 +78,8 @@ class ChatSocketManager(SocketManager):
             server_logger.info(f"connected client: {transport.peername} as '{data_json.get('username')}'")
 
     async def _transport_logout(self, transport, data_json=None):
+        """ Processes an incoming logout request.  """
+
         if transport.fileno in self.members:
             self.members.pop(transport.fileno)
 
@@ -85,6 +89,8 @@ class ChatSocketManager(SocketManager):
 
     @login_required
     async def _transport_send(self, transport, data_json):
+        """ Processes an incoming request to send a message.  """
+
         self.storage.send(data_json['username'], data_json['content'])
 
         # A new message is sent as a list
