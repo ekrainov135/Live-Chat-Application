@@ -1,7 +1,7 @@
 import os
 from threading import Thread
 
-from client.client import ChatClient, CLEARING_STRING, ClientError
+from client import ChatClient, CLEARING_STRING, ClientError
 
 
 def console_input(prompt='', clearing=0):
