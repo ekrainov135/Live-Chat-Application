@@ -19,7 +19,7 @@ def run_chat_server(host='127.0.0.1', port=7070):
 
 
 async def server_input(loop, server):
-    """ Function to manage the server from the console.  """
+    """ Manage the server from the console.  """
 
     commands = {'stop': server.stop, 'abort': server.abort,
                 'clear': lambda: os.system('cls' if os.name == 'nt' else 'clear'),
