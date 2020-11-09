@@ -19,11 +19,11 @@ class FileStorageDriver(BaseStorageDriver):
         pass
 
     @abstractmethod
-    def write(self, data):
+    def write(self, data, mode):
         pass
 
 
-class DriverJSON(BaseStorageDriver):
+class DriverJSON(FileStorageDriver):
     """ Driver for handling json files.  """
 
     def __init__(self, filename):
